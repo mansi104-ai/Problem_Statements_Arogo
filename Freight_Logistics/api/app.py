@@ -1,58 +1,63 @@
-import streamlit as st
-import pandas as pd
+from fastapi import FastAPI, Request, Form
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 import numpy as np
 import pickle
-
-# Ensure set_page_config is the first command
-st.set_page_config(page_title="Shipment Delay Predictor", layout="wide")
+import os
 
 # Load the trained model
-MODEL_PATH = '../models/scaler.pkl'
+model_path = "../models/optimized_decision_tree.pkl"
 
-@st.cache_resource
-def load_model():
-    with open(MODEL_PATH, 'rb') as file:
-        model = pickle.load(file)
-    return model
+if not os.path.exists(model_path):
+    raise FileNotFoundError(f"The model file was not found at {model_path}. Please check the path and try again.")
 
-model = load_model()
+with open(model_path, "rb") as file:
+    model = pickle.load(file)
 
-# Define the Streamlit app
-st.title("📦 Shipment Delay Predictor")
-st.markdown("""
-This tool predicts whether a shipment will be delayed or delivered on time based on the provided details. Fill in the form below to get a prediction.
-""")
+# Initialize FastAPI app
+app = FastAPI()
 
-# Input form
-st.sidebar.header("Enter Shipment Details")
-distance = st.sidebar.number_input("Distance (km)", min_value=0, step=1, value=100)
-planned_delivery_days = st.sidebar.number_input("Planned Delivery Days", min_value=1, step=1, value=2)
-actual_delivery_days = st.sidebar.number_input("Actual Delivery Days", min_value=1, step=1, value=2)
-is_long_distance = st.sidebar.radio("Is it a long-distance shipment?", options=[0, 1], index=0)
-is_bad_weather = st.sidebar.radio("Are the weather conditions bad?", options=[0, 1], index=0)
-is_heavy_traffic = st.sidebar.radio("Are there heavy traffic conditions?", options=[0, 1], index=0)
+# Set up Jinja2 templates and static files
+templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Predict button
-if st.sidebar.button("Predict Delay"):
-    # Prepare the input for the model
-    input_data = np.array([[distance, planned_delivery_days, actual_delivery_days, 
-                            is_long_distance, is_bad_weather, is_heavy_traffic]])
-    
-    # Prediction
-    prediction = model.predict(input_data)[0]
-    delay_probability = model.predict_proba(input_data)[0][1]
-    
-    # Display the result
-    st.header("Prediction Results")
-    if prediction == 1:
-        st.error(f"🚨 The shipment is likely to be delayed with a probability of {delay_probability:.2%}.")
-    else:
-        st.success(f"✅ The shipment is expected to be on time with a probability of {1 - delay_probability:.2%}.")
-else:
-    st.info("Enter shipment details in the sidebar and click 'Predict Delay'.")
+# Root endpoint to render the prediction page
+@app.get("/", response_class=HTMLResponse)
+def root(request: Request):
+    return templates.TemplateResponse("predict.html", {"request": request})
 
-# Footer
-st.markdown("""
----
-**Note:** This application uses a machine learning model trained on historical shipment data to make predictions. For best results, provide accurate input details.
-""")
+# Predict delay endpoint
+@app.post("/predict", response_class=HTMLResponse)
+def predict_delay(
+    request: Request,
+    distance_km: float = Form(...),
+    planned_delivery_days: int = Form(...),
+    actual_delivery_days: int = Form(...),
+    weather_conditions: int = Form(...),
+    traffic_conditions: int = Form(...),
+    is_long_distance: int = Form(...),
+    is_bad_weather: int = Form(...),
+    is_heavy_traffic: int = Form(...),
+):
+    # Convert input data to the required format
+    input_features = np.array([
+        distance_km,
+        planned_delivery_days,
+        actual_delivery_days,
+        weather_conditions,
+        traffic_conditions,
+        is_long_distance,
+        is_bad_weather,
+        is_heavy_traffic,
+    ]).reshape(1, -1)
+
+    # Make prediction
+    prediction = model.predict(input_features)
+    delay_prediction = "Delayed" if prediction[0] == 1 else "On Time"
+
+    # Render the result
+    return templates.TemplateResponse(
+        "predict.html",
+        {"request": request, "result": delay_prediction}
+    )

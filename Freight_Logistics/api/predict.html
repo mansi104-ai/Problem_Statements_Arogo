@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Freight Logistics Prediction</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Freight Logistics Delay Prediction</h1>
+        <form action="/predict" method="post">
+            <label for="distance_km">Distance (km):</label>
+            <input type="number" step="0.1" id="distance_km" name="distance_km" required>
+            <label for="planned_delivery_days">Planned Delivery Days:</label>
+            <input type="number" id="planned_delivery_days" name="planned_delivery_days" required>
+            <label for="actual_delivery_days">Actual Delivery Days:</label>
+            <input type="number" id="actual_delivery_days" name="actual_delivery_days" required>
+            <label for="weather_conditions">Weather Conditions (1-5):</label>
+            <input type="number" id="weather_conditions" name="weather_conditions" required>
+            <label for="traffic_conditions">Traffic Conditions (1-5):</label>
+            <input type="number" id="traffic_conditions" name="traffic_conditions" required>
+            <label for="is_long_distance">Is Long Distance (0/1):</label>
+            <input type="number" id="is_long_distance" name="is_long_distance" required>
+            <label for="is_bad_weather">Is Bad Weather (0/1):</label>
+            <input type="number" id="is_bad_weather" name="is_bad_weather" required>
+            <label for="is_heavy_traffic">Is Heavy Traffic (0/1):</label>
+            <input type="number" id="is_heavy_traffic" name="is_heavy_traffic" required>
+            <button type="submit">Predict</button>
+        </form>
+        {% if result %}
+            <h2>Prediction Result: {{ result }}</h2>
+        {% endif %}
+    </div>
+</body>
+</html>
